@@ -1,4 +1,6 @@
-# WristEyes 👀
+<p align="center"><img src="assets/logo.png" width="160" alt="WristEyes logo"></p>
+
+<h1 align="center">WristEyes</h1>
 
 Talk to your Wear OS watch from your computer — or let an AI assistant do it.
 
