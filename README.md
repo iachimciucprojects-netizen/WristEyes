@@ -1,60 +1,91 @@
-<p align="center"><img src="assets/logo.png" width="160" alt="WristEyes logo"></p>
+<p align="center"><img src="assets/logo.png" width="150" alt="WristEyes logo"></p>
 
 <h1 align="center">WristEyes</h1>
 
-Talk to your Wear OS watch from your computer — or let an AI assistant do it.
+<p align="center"><b>MCP server for Wear OS watches.</b><br>
+Let Claude, Cursor or any AI assistant read your heart rate, buzz your wrist and talk to you.</p>
 
-WristEyes is a tiny app for Wear OS that serves a JSON API on your Wi-Fi, plus an
-[MCP](https://modelcontextprotocol.io) server so Claude, Cursor or any MCP client can
-read the watch's sensors and reach you on the wrist.
+<p align="center">
+  <a href="https://github.com/iachimciucprojects-netizen/WristEyes/releases/latest"><img src="https://img.shields.io/github/v/release/iachimciucprojects-netizen/WristEyes?label=APK" alt="Latest APK"></a>
+  <img src="https://img.shields.io/badge/Wear%20OS-3%2B-4285F4?logo=wearos&logoColor=white" alt="Wear OS 3+">
+  <img src="https://img.shields.io/badge/MCP-ready-6C63FF" alt="MCP ready">
+  <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT license">
+</p>
 
-> "What's my heart rate?" → the assistant asks the watch → `68 bpm`
+<p align="center"><img src="assets/demo.gif" width="260" alt="WristEyes demo: the AI greets you, reads your pulse and compass on the watch"></p>
 
-## What it can do
-
-| Command | What happens |
-|---|---|
-| `watch_info` | model, Android version, battery, charging, screen on/off |
-| `read_sensor` | heart rate, steps, pressure + altitude, compass, light, on-wrist, accelerometer, gyroscope, magnetometer |
-| `vibrate` | buzz the watch (length and count) |
-| `notify` | post a notification |
-| `show_text` | big text on the whole screen |
-| `say` | speak text through the watch speaker |
-
-### Offline voice assistant (Russian)
-
-Tap **🎤 Спросить** on the watch and talk. It runs fully offline with [Vosk](https://alphacephei.com/vosk/):
-heart rate, steps, time, date, battery, altitude, compass, timers ("таймер на пять минут"), vibration.
-What you say shows up on screen while you speak, and the answer is spoken back.
-
-No AI here: phrases are matched to commands, so it is instant, free and private.
-
-Tested on a **TicWatch Pro 5** (Wear OS 4 / Android 13). Should work on any Wear OS 3+ watch.
-
-## Setup
-
-### 1. Watch app
-
-You need ADB over Wi-Fi on the watch (Settings → Developer options → Wireless debugging).
-
-```bash
-./gradlew :app:assembleDebug
-adb install app/build/outputs/apk/debug/app-debug.apk
+```
+You:     what's my heart rate?
+Claude:  (asks your watch)  Your heart rate is 68 bpm.
 ```
 
-Open **WristEyes** on the watch and allow the permissions. The screen shows the
-address (`192.168.x.x:8765`) and a token.
+## Why
 
-Optional, so `show_text` can open full screen even when the app is in the background:
+Your watch has a heart rate sensor, a barometer, a compass, a speaker and a vibration motor —
+and it sits on your wrist all day. WristEyes opens all of that to your own scripts and AI tools,
+over your home Wi-Fi, with nothing in the cloud.
+
+- 🫀 **Read sensors**: heart rate, steps, pressure and altitude, compass, light, on-wrist, motion
+- 📳 **Reach you**: vibrate, notify, show big text on screen, speak out loud
+- 🤖 **Works with AI**: a ready MCP server for Claude Code, Claude Desktop, Cursor and others
+- 🎤 **Offline voice assistant** on the watch (Russian for now): pulse, steps, timers, compass…
+- 🔒 **Local only**: plain HTTP on your LAN with a token, no accounts, no tracking
+- 🪶 **Tiny**: no dependencies in the server, a few small Kotlin files
+
+## Try it in 2 minutes
+
+**1. Install the watch app.** Turn on *Wireless debugging* on the watch
+(Settings → Developer options), then:
+
+```bash
+adb connect <watch-ip>:<port>
+adb install wristeyes-0.2.0.apk        # from the Releases page
+```
+
+Open **WristEyes** on the watch and allow the permissions. It shows the address
+(`192.168.x.x:8765`) and a token.
+
+**2. Check it answers:**
+
+```bash
+curl -H "Authorization: Bearer <token>" http://192.168.x.x:8765/info
+```
+
+**3. Connect your AI** (Python 3.10+):
+
+```bash
+git clone https://github.com/iachimciucprojects-netizen/WristEyes && cd WristEyes/mcp
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+claude mcp add wristeyes --scope user \
+  -e WRISTEYES_URL=http://192.168.x.x:8765 \
+  -e WRISTEYES_TOKEN=<token> \
+  -- "$PWD/.venv/bin/python" "$PWD/server.py"
+```
+
+Now ask Claude *"what's my heart rate?"* or *"show 'time to sleep' on my watch"*.
+Claude Desktop, Cursor and other clients take the same command and env in their MCP config.
+
+<details>
+<summary><b>Optional: full-screen text from the background</b></summary>
+
+Android blocks apps from opening screens in the background. Allow it once and `show_text`
+opens full screen even when WristEyes is closed:
 
 ```bash
 adb shell appops set com.wristeyes SYSTEM_ALERT_WINDOW allow
 ```
+</details>
 
-### 2. Voice model (for the assistant)
+<details>
+<summary><b>Optional: offline voice assistant</b></summary>
 
-Download [vosk-model-small-ru-0.22](https://alphacephei.com/vosk/models) (46 MB), unzip it and copy it into the app
-(works with the debug build):
+Tap **🎤 Спросить** on the watch and talk. It runs fully offline with [Vosk](https://alphacephei.com/vosk/):
+heart rate, steps, time, date, battery, altitude, compass, timers ("таймер на пять минут"), vibration.
+What you say appears on screen while you speak, and the answer is spoken back.
+No AI here: phrases are matched to commands, so it is instant, free and private.
+
+It needs the Russian model [vosk-model-small-ru-0.22](https://alphacephei.com/vosk/models) (46 MB).
+Unzip it and copy it into the app:
 
 ```bash
 adb push vosk-model-small-ru-0.22 /data/local/tmp/vosk-model-ru
@@ -62,36 +93,24 @@ adb shell chmod -R a+rX /data/local/tmp/vosk-model-ru
 adb shell run-as com.wristeyes cp -r /data/local/tmp/vosk-model-ru files/
 adb shell rm -rf /data/local/tmp/vosk-model-ru
 ```
+</details>
 
-### 3. MCP server
+## MCP tools
 
-```bash
-cd mcp
-python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
-```
-
-Add it to Claude Code:
-
-```bash
-claude mcp add wristeyes --scope user \
-  -e WRISTEYES_URL=http://192.168.x.x:8765 \
-  -e WRISTEYES_TOKEN=<token from the watch> \
-  -- "$PWD/.venv/bin/python" "$PWD/server.py"
-```
-
-Claude Desktop, Cursor and others take the same command and env in their MCP config.
+| Tool | What happens |
+|---|---|
+| `watch_info` | model, Android version, battery, charging, screen on/off |
+| `list_sensors` | which sensors this watch has |
+| `read_sensor` | heart rate, steps, pressure + altitude, compass, light, on-wrist, accelerometer, gyroscope, magnetometer |
+| `vibrate` | buzz the watch (length and count) |
+| `notify` | post a notification |
+| `show_text` | big text on the whole screen |
+| `say` | speak text through the watch speaker |
 
 ## HTTP API
 
+Use it from any language, shell script, Home Assistant or n8n.
 Every call except `GET /` needs `Authorization: Bearer <token>`.
-
-```bash
-curl -H "Authorization: Bearer $TOKEN" http://192.168.x.x:8765/info
-curl -H "Authorization: Bearer $TOKEN" "http://192.168.x.x:8765/sensor?type=heart_rate"
-curl -H "Authorization: Bearer $TOKEN" -d '{"ms":300,"times":2}' http://192.168.x.x:8765/vibrate
-curl -H "Authorization: Bearer $TOKEN" -d '{"text":"Hi!"}' http://192.168.x.x:8765/show
-```
 
 | Method | Path | Body / query |
 |---|---|---|
@@ -103,19 +122,48 @@ curl -H "Authorization: Bearer $TOKEN" -d '{"text":"Hi!"}' http://192.168.x.x:87
 | POST | `/show` | `{"text":"...","seconds":8}` |
 | POST | `/say` | `{"text":"...","lang":"en"}` |
 
+```bash
+curl -H "Authorization: Bearer $TOKEN" "http://192.168.x.x:8765/sensor?type=heart_rate"
+curl -H "Authorization: Bearer $TOKEN" -d '{"text":"Stand up! 🧍"}' http://192.168.x.x:8765/show
+```
+
 The watch also announces itself on the network as `_wristeyes._tcp`.
+
+## Ideas for what to build
+
+- "Buzz me when the build finishes" in your terminal
+- Your AI coding agent asks for approval with a tap on the wrist
+- Log your heart rate during meetings, games or workouts
+- A stand-up or water reminder that actually reaches you
+- Home Assistant: show who rang the doorbell on your wrist
+
+## Compatibility
+
+| Watch | Status |
+|---|---|
+| TicWatch Pro 5 (Wear OS 4) | ✅ tested |
+| Galaxy Watch, Pixel Watch, other Wear OS 3+ | should work, [tell us](https://github.com/iachimciucprojects-netizen/WristEyes/issues) |
 
 ## Notes
 
-- The API is meant for your home network. Anyone with the token can buzz your watch, so keep it private.
-- The app holds Wi-Fi and a wake lock while running, which costs some battery. Stop it from the app when you don't need it.
+- Meant for your home network. Anyone with the token can buzz your watch, so keep it private.
+- While running, the app keeps Wi-Fi and a wake lock, which costs some battery. Stop it in the app when you don't need it.
 - Heart rate needs the watch on your wrist and takes 5–30 seconds.
 
 ## Roadmap
 
-- Animated eyes on the watch face that react to commands
-- More voice commands and other languages
-- Music control, files, reminders
+- [ ] Animated eyes that react to commands
+- [ ] Voice model downloads itself, no adb needed
+- [ ] Voice commands in English and Romanian
+- [ ] `pip install` / `uvx` package for the MCP server
+- [ ] Music control, reminders, files
+- [ ] Ask the user a question on the watch and wait for the tap
+
+## Contributing
+
+Ideas, bug reports and pull requests are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md)
+and the [good first issues](https://github.com/iachimciucprojects-netizen/WristEyes/labels/good%20first%20issue).
+If WristEyes works on your watch, a ⭐ and a note about your model help a lot.
 
 ## License
 
