@@ -1,73 +1,73 @@
 package com.wristeyes
 
-import android.Manifest
 import android.app.Activity
 import android.graphics.Color
 import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.view.Gravity
-import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 
-/** Shows where the API listens and the token to use; starts and stops the service. */
+/**
+ * Connection settings, opened with a long press on the face: where the API
+ * listens, the token for the MCP server, and a switch to stop it.
+ */
 class MainActivity : Activity() {
-    private lateinit var status: TextView
-    private lateinit var toggle: Button
+    private lateinit var address: TextView
+    private lateinit var token: TextView
+    private lateinit var toggle: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val pad = (resources.displayMetrics.widthPixels * 0.12).toInt()
+        val size = resources.displayMetrics.widthPixels
+        val pad = (size * 0.14).toInt()
         val column = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
-            setPadding(pad, pad, pad, pad)
+            setPadding(pad, (size * 0.12).toInt(), pad, (size * 0.2).toInt())
         }
-        column.addView(TextView(this).apply {
-            text = "👀 WristEyes"
-            textSize = 18f
-            setTypeface(typeface, Typeface.BOLD)
-            gravity = Gravity.CENTER
-        })
-        status = TextView(this).apply {
-            textSize = 13f
-            gravity = Gravity.CENTER
-            setPadding(0, 12, 0, 12)
-        }
-        column.addView(status)
-        column.addView(Button(this).apply {
-            text = "🎤 Спросить"
-            setOnClickListener { startActivity(android.content.Intent(this@MainActivity, AssistantActivity::class.java)) }
-        })
-        toggle = Button(this).apply {
+        column.addView(label("Подключение", 16f, Color.WHITE, bold = true))
+        column.addView(label("Адрес", 11f, Color.rgb(150, 140, 220)).apply { setPadding(0, 18, 0, 0) })
+        address = label("", 14f, Color.WHITE).also { column.addView(it) }
+        column.addView(label("Токен для MCP", 11f, Color.rgb(150, 140, 220)).apply { setPadding(0, 14, 0, 0) })
+        token = label("", 12f, Color.rgb(200, 200, 210)).apply { setTextIsSelectable(true) }.also { column.addView(it) }
+        toggle = label("", 14f, Color.WHITE, bold = true).apply {
+            setPadding(0, 22, 0, 22)
+            background = GradientDrawable().apply {
+                cornerRadius = 100f
+                setColor(Color.rgb(60, 48, 140))
+            }
             setOnClickListener {
                 if (WatchService.running) WatchService.stop(this@MainActivity) else WatchService.start(this@MainActivity)
                 postDelayed({ refresh() }, 400)
             }
         }
-        column.addView(toggle)
-        setContentView(ScrollView(this).apply { addView(column); setBackgroundColor(Color.BLACK) })
-
-        requestPermissions(
-            arrayOf(Manifest.permission.BODY_SENSORS, Manifest.permission.ACTIVITY_RECOGNITION, Manifest.permission.POST_NOTIFICATIONS, Manifest.permission.RECORD_AUDIO),
-            1,
-        )
-        if (!WatchService.running) WatchService.start(this)
+        column.addView(toggle, LinearLayout.LayoutParams(-1, -2).apply { topMargin = 26 })
+        setContentView(ScrollView(this).apply {
+            addView(column)
+            setBackgroundColor(Color.BLACK)
+        })
     }
 
     override fun onResume() {
         super.onResume()
-        status.postDelayed({ refresh() }, 300)
+        address.postDelayed({ refresh() }, 300)
     }
 
     private fun refresh() {
         val on = WatchService.running
-        status.text = if (on) {
-            "Listening\n${WatchService.localIp() ?: "no Wi-Fi"}:${WatchService.PORT}\n\nToken\n${Prefs.token(this)}"
-        } else {
-            "Stopped"
-        }
-        toggle.text = if (on) "Stop" else "Start"
+        address.text = if (on) "${WatchService.localIp() ?: "нет Wi-Fi"}:${WatchService.PORT}" else "выключено"
+        token.text = Prefs.token(this)
+        toggle.text = if (on) "Выключить" else "Включить"
+    }
+
+    private fun label(text: String, size: Float, color: Int, bold: Boolean = false) = TextView(this).apply {
+        this.text = text
+        textSize = size
+        setTextColor(color)
+        gravity = Gravity.CENTER
+        if (bold) setTypeface(typeface, Typeface.BOLD)
     }
 }

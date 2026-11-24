@@ -39,7 +39,13 @@
 
         <activity
             android:name=".MainActivity"
-            android:exported="true">
+            android:exported="false"
+            android:screenOrientation="nosensor" />
+
+        <activity
+            android:name=".AssistantActivity"
+            android:exported="true"
+            android:screenOrientation="nosensor">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -47,13 +53,9 @@
         </activity>
 
         <activity
-            android:name=".AssistantActivity"
-            android:exported="false"
-            android:excludeFromRecents="true" />
-
-        <activity
             android:name=".MessageActivity"
             android:excludeFromRecents="true"
+            android:screenOrientation="nosensor"
             android:exported="false"
             android:showWhenLocked="true"
             android:turnScreenOn="true"

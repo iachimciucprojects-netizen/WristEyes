@@ -12,7 +12,11 @@ Let Claude, Cursor or any AI assistant read your heart rate, buzz your wrist and
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT license">
 </p>
 
-<p align="center"><img src="assets/demo.gif" width="260" alt="WristEyes demo: the AI greets you, reads your pulse and compass on the watch"></p>
+<p align="center">
+  <img src="assets/face.gif" width="240" alt="The WristEyes face: tap it, ears pop out, it listens and answers">
+  &nbsp;&nbsp;
+  <img src="assets/demo.gif" width="240" alt="Claude greets you, reads your pulse and compass on the watch">
+</p>
 
 ```
 You:     what's my heart rate?
@@ -28,6 +32,7 @@ over your home Wi-Fi, with nothing in the cloud.
 - 🫀 **Read sensors**: heart rate, steps, pressure and altitude, compass, light, on-wrist, motion
 - 📳 **Reach you**: vibrate, notify, show big text on screen, speak out loud
 - 🤖 **Works with AI**: a ready MCP server for Claude Code, Claude Desktop, Cursor and others
+- 👀 **A face that's alive**: eyes blink and look around, ears pop out when it listens, it talks back
 - 🎤 **Offline voice assistant** on the watch (Russian for now): pulse, steps, timers, compass…
 - 🔒 **Local only**: plain HTTP on your LAN with a token, no accounts, no tracking
 - 🪶 **Tiny**: no dependencies in the server, a few small Kotlin files
@@ -39,11 +44,11 @@ over your home Wi-Fi, with nothing in the cloud.
 
 ```bash
 adb connect <watch-ip>:<port>
-adb install wristeyes-0.2.0.apk        # from the Releases page
+adb install wristeyes-0.3.0.apk        # from the Releases page
 ```
 
-Open **WristEyes** on the watch and allow the permissions. It shows the address
-(`192.168.x.x:8765`) and a token.
+Open **WristEyes** on the watch and allow the permissions. **Long-press the face** to see the
+address (`192.168.x.x:8765`) and the token.
 
 **2. Check it answers:**
 
@@ -79,7 +84,7 @@ adb shell appops set com.wristeyes SYSTEM_ALERT_WINDOW allow
 <details>
 <summary><b>Optional: offline voice assistant</b></summary>
 
-Tap **🎤 Спросить** on the watch and talk. It runs fully offline with [Vosk](https://alphacephei.com/vosk/):
+Tap the face and talk. It runs fully offline with [Vosk](https://alphacephei.com/vosk/):
 heart rate, steps, time, date, battery, altitude, compass, timers ("таймер на пять минут"), vibration.
 What you say appears on screen while you speak, and the answer is spoken back.
 No AI here: phrases are matched to commands, so it is instant, free and private.
@@ -152,7 +157,7 @@ The watch also announces itself on the network as `_wristeyes._tcp`.
 
 ## Roadmap
 
-- [ ] Animated eyes that react to commands
+- [x] Animated eyes that react to commands
 - [ ] Voice model downloads itself, no adb needed
 - [ ] Voice commands in English and Romanian
 - [ ] `pip install` / `uvx` package for the MCP server
