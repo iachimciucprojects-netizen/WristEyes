@@ -21,6 +21,14 @@ read the watch's sensors and reach you on the wrist.
 | `show_text` | big text on the whole screen |
 | `say` | speak text through the watch speaker |
 
+### Offline voice assistant (Russian)
+
+Tap **🎤 Спросить** on the watch and talk. It runs fully offline with [Vosk](https://alphacephei.com/vosk/):
+heart rate, steps, time, date, battery, altitude, compass, timers ("таймер на пять минут"), vibration.
+What you say shows up on screen while you speak, and the answer is spoken back.
+
+No AI here: phrases are matched to commands, so it is instant, free and private.
+
 Tested on a **TicWatch Pro 5** (Wear OS 4 / Android 13). Should work on any Wear OS 3+ watch.
 
 ## Setup
@@ -43,7 +51,19 @@ Optional, so `show_text` can open full screen even when the app is in the backgr
 adb shell appops set com.wristeyes SYSTEM_ALERT_WINDOW allow
 ```
 
-### 2. MCP server
+### 2. Voice model (for the assistant)
+
+Download [vosk-model-small-ru-0.22](https://alphacephei.com/vosk/models) (46 MB), unzip it and copy it into the app
+(works with the debug build):
+
+```bash
+adb push vosk-model-small-ru-0.22 /data/local/tmp/vosk-model-ru
+adb shell chmod -R a+rX /data/local/tmp/vosk-model-ru
+adb shell run-as com.wristeyes cp -r /data/local/tmp/vosk-model-ru files/
+adb shell rm -rf /data/local/tmp/vosk-model-ru
+```
+
+### 3. MCP server
 
 ```bash
 cd mcp
@@ -94,7 +114,7 @@ The watch also announces itself on the network as `_wristeyes._tcp`.
 ## Roadmap
 
 - Animated eyes on the watch face that react to commands
-- Voice assistant on the watch
+- More voice commands and other languages
 - Music control, files, reminders
 
 ## License

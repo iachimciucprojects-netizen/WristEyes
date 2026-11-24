@@ -36,6 +36,10 @@ class MainActivity : Activity() {
             setPadding(0, 12, 0, 12)
         }
         column.addView(status)
+        column.addView(Button(this).apply {
+            text = "🎤 Спросить"
+            setOnClickListener { startActivity(android.content.Intent(this@MainActivity, AssistantActivity::class.java)) }
+        })
         toggle = Button(this).apply {
             setOnClickListener {
                 if (WatchService.running) WatchService.stop(this@MainActivity) else WatchService.start(this@MainActivity)
@@ -46,7 +50,7 @@ class MainActivity : Activity() {
         setContentView(ScrollView(this).apply { addView(column); setBackgroundColor(Color.BLACK) })
 
         requestPermissions(
-            arrayOf(Manifest.permission.BODY_SENSORS, Manifest.permission.ACTIVITY_RECOGNITION, Manifest.permission.POST_NOTIFICATIONS),
+            arrayOf(Manifest.permission.BODY_SENSORS, Manifest.permission.ACTIVITY_RECOGNITION, Manifest.permission.POST_NOTIFICATIONS, Manifest.permission.RECORD_AUDIO),
             1,
         )
         if (!WatchService.running) WatchService.start(this)

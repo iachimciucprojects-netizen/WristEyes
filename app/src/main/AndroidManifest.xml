@@ -18,6 +18,14 @@
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.BODY_SENSORS" />
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
+
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.SET_TIMER" />
+        </intent>
+    </queries>
 
     <application
         android:allowBackup="false"
@@ -37,6 +45,11 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".AssistantActivity"
+            android:exported="false"
+            android:excludeFromRecents="true" />
 
         <activity
             android:name=".MessageActivity"
