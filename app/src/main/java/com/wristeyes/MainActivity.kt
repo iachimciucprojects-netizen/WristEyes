@@ -45,6 +45,14 @@ class MainActivity : Activity() {
             }
         }
         column.addView(toggle, LinearLayout.LayoutParams(-1, -2).apply { topMargin = 26 })
+        column.addView(label("👀  Назад", 14f, Color.WHITE, bold = true).apply {
+            setPadding(0, 22, 0, 22)
+            background = GradientDrawable().apply {
+                cornerRadius = 100f
+                setColor(Color.rgb(108, 99, 255))
+            }
+            setOnClickListener { finish() }
+        }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = 14 })
         setContentView(ScrollView(this).apply {
             addView(column)
             setBackgroundColor(Color.BLACK)
