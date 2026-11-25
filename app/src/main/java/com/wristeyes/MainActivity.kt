@@ -1,6 +1,7 @@
 package com.wristeyes
 
 import android.app.Activity
+import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
@@ -51,7 +52,7 @@ class MainActivity : Activity() {
                 cornerRadius = 100f
                 setColor(Color.rgb(108, 99, 255))
             }
-            setOnClickListener { finish() }
+            setOnClickListener { backToFace() }
         }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = 14 })
         setContentView(ScrollView(this).apply {
             addView(column)
@@ -62,6 +63,30 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         address.postDelayed({ refresh() }, 300)
+    }
+
+    // targetSdk 36: the system back gesture goes through OnBackInvokedDispatcher, not onBackPressed.
+    private val backCallback by lazy { android.window.OnBackInvokedCallback { backToFace() } }
+
+    @Deprecated("Deprecated in Java")
+    override fun onBackPressed() = backToFace()   // Wear OS 3 (Android 11)
+
+    override fun onStart() {
+        super.onStart()
+        if (android.os.Build.VERSION.SDK_INT >= 33) onBackInvokedDispatcher.registerOnBackInvokedCallback(
+            android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, backCallback)
+    }
+
+    override fun onStop() {
+        if (android.os.Build.VERSION.SDK_INT >= 33) onBackInvokedDispatcher.unregisterOnBackInvokedCallback(backCallback)
+        super.onStop()
+    }
+
+    /** Always lands on the face, even if Android already closed it in the background. */
+    private fun backToFace() {
+        startActivity(Intent(this, AssistantActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP))
+        finish()
     }
 
     private fun refresh() {

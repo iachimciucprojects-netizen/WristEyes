@@ -40,6 +40,8 @@
         <activity
             android:name=".MainActivity"
             android:exported="false"
+            android:noHistory="true"
+            android:excludeFromRecents="true"
             android:screenOrientation="nosensor" />
 
         <activity
