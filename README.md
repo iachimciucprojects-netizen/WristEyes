@@ -33,7 +33,8 @@ over your home Wi-Fi, with nothing in the cloud.
 - 📳 **Reach you**: vibrate, notify, show big text on screen, speak out loud
 - 🤖 **Works with AI**: a ready MCP server for Claude Code, Claude Desktop, Cursor and others
 - 👀 **A face that's alive**: eyes blink and look around, ears pop out when it listens, it talks back
-- 🎤 **Offline voice assistant** on the watch (Russian for now): pulse, steps, timers, compass…
+- 🎤 **Offline voice assistant** on the watch, English and Russian: pulse, steps, timers, compass, weather…
+- 🙋 **Knows you**: asks your name once, says good morning, good evening and good night at the right time
 - 🔒 **Local only**: plain HTTP on your LAN with a token, no accounts, no tracking
 - 🪶 **Tiny**: no dependencies in the server, a few small Kotlin files
 
@@ -44,11 +45,12 @@ over your home Wi-Fi, with nothing in the cloud.
 
 ```bash
 adb connect <watch-ip>:<port>
-adb install wristeyes-0.3.0.apk        # from the Releases page
+adb install wristeyes-0.4.0.apk        # from the Releases page
 ```
 
-Open **WristEyes** on the watch and allow the permissions. **Long-press the face** to see the
-address (`192.168.x.x:8765`) and the token.
+Open **WristEyes** on the watch and allow the permissions. Tap the face: the first time it downloads
+its voice (~45 MB over Wi-Fi) and asks your name. **Long-press the face** for settings: your name,
+the address (`192.168.x.x:8765`) and the token.
 
 **2. Check it answers:**
 
@@ -82,22 +84,20 @@ adb shell appops set com.wristeyes SYSTEM_ALERT_WINDOW allow
 </details>
 
 <details>
-<summary><b>Optional: offline voice assistant</b></summary>
+<summary><b>The voice assistant</b></summary>
 
-Tap the face and talk. It runs fully offline with [Vosk](https://alphacephei.com/vosk/):
-heart rate, steps, time, date, battery, altitude, compass, timers ("таймер на пять минут"), vibration.
-What you say appears on screen while you speak, and the answer is spoken back.
+Tap the face and talk. Recognition runs fully offline with [Vosk](https://alphacephei.com/vosk/),
+in English or Russian depending on the watch language. The model (~45 MB) downloads by itself on
+the first tap.
+
+Try: *"what's my heart rate"*, *"how many steps"*, *"what time is it"*, *"battery"*,
+*"which way is north"*, *"timer for five minutes"*, *"what's the weather"*, *"weather tomorrow"*,
+*"good night"*, *"my name is …"*.
+
 No AI here: phrases are matched to commands, so it is instant, free and private.
-
-It needs the Russian model [vosk-model-small-ru-0.22](https://alphacephei.com/vosk/models) (46 MB).
-Unzip it and copy it into the app:
-
-```bash
-adb push vosk-model-small-ru-0.22 /data/local/tmp/vosk-model-ru
-adb shell chmod -R a+rX /data/local/tmp/vosk-model-ru
-adb shell run-as com.wristeyes cp -r /data/local/tmp/vosk-model-ru files/
-adb shell rm -rf /data/local/tmp/vosk-model-ru
-```
+The only things that go online are the model download and weather questions
+([Open-Meteo](https://open-meteo.com), no account; if the watch has no location fix,
+the city is guessed from your IP with [ipwho.is](https://ipwho.is)).
 </details>
 
 ## MCP tools
@@ -158,8 +158,10 @@ The watch also announces itself on the network as `_wristeyes._tcp`.
 ## Roadmap
 
 - [x] Animated eyes that react to commands
-- [ ] Voice model downloads itself, no adb needed
-- [ ] Voice commands in English and Romanian
+- [x] Voice model downloads itself, no adb needed
+- [x] Voice commands in English
+- [x] Knows your name, greets you by the time of day, weather
+- [ ] Voice commands in Romanian
 - [ ] `pip install` / `uvx` package for the MCP server
 - [ ] Music control, reminders, files
 - [ ] Ask the user a question on the watch and wait for the tap

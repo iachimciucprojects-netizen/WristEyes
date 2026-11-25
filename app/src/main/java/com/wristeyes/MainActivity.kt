@@ -7,6 +7,9 @@ import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.view.Gravity
+import android.text.Editable
+import android.text.TextWatcher
+import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -29,10 +32,26 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER_HORIZONTAL
             setPadding(pad, (size * 0.12).toInt(), pad, (size * 0.2).toInt())
         }
-        column.addView(label("Подключение", 16f, Color.WHITE, bold = true))
-        column.addView(label("Адрес", 11f, Color.rgb(150, 140, 220)).apply { setPadding(0, 18, 0, 0) })
+        column.addView(label(Lang.t("Настройки", "Settings"), 16f, Color.WHITE, bold = true))
+        column.addView(label(Lang.t("Твоё имя", "Your name"), 11f, Color.rgb(150, 140, 220)).apply { setPadding(0, 18, 0, 0) })
+        column.addView(EditText(this).apply {
+            setText(Owner.name(this@MainActivity))
+            hint = Lang.t("нажми, чтобы ввести", "tap to type")
+            textSize = 15f
+            gravity = Gravity.CENTER
+            setSingleLine()
+            setTextColor(Color.WHITE)
+            setHintTextColor(Color.GRAY)
+            addTextChangedListener(object : TextWatcher {
+                override fun afterTextChanged(s: Editable?) = Owner.setName(this@MainActivity, s.toString())
+                override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+                override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+            })
+        })
+        column.addView(label(Lang.t("Для ИИ на компьютере", "For AI on your computer"), 13f, Color.WHITE, bold = true).apply { setPadding(0, 22, 0, 0) })
+        column.addView(label(Lang.t("Адрес", "Address"), 11f, Color.rgb(150, 140, 220)).apply { setPadding(0, 10, 0, 0) })
         address = label("", 14f, Color.WHITE).also { column.addView(it) }
-        column.addView(label("Токен для MCP", 11f, Color.rgb(150, 140, 220)).apply { setPadding(0, 14, 0, 0) })
+        column.addView(label(Lang.t("Токен для MCP", "MCP token"), 11f, Color.rgb(150, 140, 220)).apply { setPadding(0, 14, 0, 0) })
         token = label("", 12f, Color.rgb(200, 200, 210)).apply { setTextIsSelectable(true) }.also { column.addView(it) }
         toggle = label("", 14f, Color.WHITE, bold = true).apply {
             setPadding(0, 22, 0, 22)
@@ -46,7 +65,7 @@ class MainActivity : Activity() {
             }
         }
         column.addView(toggle, LinearLayout.LayoutParams(-1, -2).apply { topMargin = 26 })
-        column.addView(label("👀  Назад", 14f, Color.WHITE, bold = true).apply {
+        column.addView(label(Lang.t("👀  Назад", "👀  Back"), 14f, Color.WHITE, bold = true).apply {
             setPadding(0, 22, 0, 22)
             background = GradientDrawable().apply {
                 cornerRadius = 100f
@@ -91,9 +110,9 @@ class MainActivity : Activity() {
 
     private fun refresh() {
         val on = WatchService.running
-        address.text = if (on) "${WatchService.localIp() ?: "нет Wi-Fi"}:${WatchService.PORT}" else "выключено"
+        address.text = if (on) "${WatchService.localIp() ?: Lang.t("нет Wi-Fi", "no Wi-Fi")}:${WatchService.PORT}" else Lang.t("выключено", "off")
         token.text = Prefs.token(this)
-        toggle.text = if (on) "Выключить" else "Включить"
+        toggle.text = if (on) Lang.t("Выключить", "Turn off") else Lang.t("Включить", "Turn on")
     }
 
     private fun label(text: String, size: Float, color: Int, bold: Boolean = false) = TextView(this).apply {

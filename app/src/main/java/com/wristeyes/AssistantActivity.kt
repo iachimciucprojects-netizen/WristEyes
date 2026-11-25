@@ -2,7 +2,6 @@ package com.wristeyes
 
 import android.Manifest
 import android.app.Activity
-import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
@@ -15,17 +14,14 @@ import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.TextView
 import org.json.JSONObject
-import org.vosk.Model
-import org.vosk.Recognizer
 import org.vosk.android.RecognitionListener
 import org.vosk.android.SpeechService
-import java.io.File
-import java.util.Locale
 import kotlin.concurrent.thread
 
 /**
  * Main screen: the WristEyes face. Tap it to talk, long-press for connection settings.
  * Listens offline with Vosk, answers simple commands and speaks the answer.
+ * On first use it downloads the voice model and asks the owner's name.
  */
 class AssistantActivity : Activity(), RecognitionListener {
     private lateinit var face: EyesView
@@ -33,11 +29,18 @@ class AssistantActivity : Activity(), RecognitionListener {
     private lateinit var answer: TextView
     private var speech: SpeechService? = null
     private var tts: TextToSpeech? = null
+    private var ttsReady = false
     private var busy = false
     private var answered = false
     private var lastPartial = ""
+    /** True while we are listening for the owner's name (free speech, not commands). */
+    private var askingName = false
+    /** Start listening as soon as the current spoken line ends (so the mic doesn't hear the watch). */
+    private var listenAfterSpeech = false
+    private var pendingGreeting: String? = null
     private lateinit var commands: Commands
     private val backToIdle = Runnable { if (!busy) face.mood = EyesView.Mood.IDLE }
+    private val tapHint get() = Lang.t("Нажми на меня", "Tap me")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -46,7 +49,7 @@ class AssistantActivity : Activity(), RecognitionListener {
 
         val size = resources.displayMetrics.widthPixels
         face = EyesView(this).apply {
-            setOnClickListener { if (!busy) listen() }
+            setOnClickListener { if (!busy) onTap() }
             setOnLongClickListener {
                 startActivity(Intent(this@AssistantActivity, MainActivity::class.java)); true
             }
@@ -63,24 +66,31 @@ class AssistantActivity : Activity(), RecognitionListener {
                 bottomMargin = (size * 0.09).toInt(); leftMargin = (size * 0.15).toInt(); rightMargin = leftMargin
             })
         })
-        say("", "Нажми на меня")
+        show("", tapHint)
 
         tts = TextToSpeech(this) { status ->
-            if (status == TextToSpeech.SUCCESS) tts?.language = Locale("ru")
+            if (status == TextToSpeech.SUCCESS) {
+                tts?.language = Lang.locale
+                ttsReady = true
+                runOnUiThread { pendingGreeting?.let { pendingGreeting = null; speak(it) } }
+            }
         }.apply {
             setOnUtteranceProgressListener(object : UtteranceProgressListener() {
                 override fun onStart(id: String?) = runOnUiThread { if (face.mood != EyesView.Mood.CONFUSED) face.mood = EyesView.Mood.SPEAKING }
-                override fun onDone(id: String?) = runOnUiThread { settle() }
+                override fun onDone(id: String?) = runOnUiThread { afterSpeech() }
                 @Deprecated("Deprecated in Java")
-                override fun onError(id: String?) = runOnUiThread { settle() }
+                override fun onError(id: String?) = runOnUiThread { afterSpeech() }
             })
         }
 
         if (!WatchService.running) WatchService.start(this)
         val missing = listOf(Manifest.permission.RECORD_AUDIO, Manifest.permission.BODY_SENSORS,
-            Manifest.permission.ACTIVITY_RECOGNITION, Manifest.permission.POST_NOTIFICATIONS)
+            Manifest.permission.ACTIVITY_RECOGNITION, Manifest.permission.POST_NOTIFICATIONS,
+            Manifest.permission.ACCESS_COARSE_LOCATION)
             .filter { checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }
         if (missing.isNotEmpty()) requestPermissions(missing.toTypedArray(), 1)
+
+        greetIfTime()
     }
 
     override fun onDestroy() {
@@ -92,39 +102,91 @@ class AssistantActivity : Activity(), RecognitionListener {
     override fun onPause() {
         super.onPause()
         // Leaving the screen stops the microphone.
-        if (busy) { speech?.cancel(); busy = false; face.mood = EyesView.Mood.IDLE; say("", "Нажми на меня") }
+        listenAfterSpeech = false
+        if (busy) { speech?.cancel(); busy = false; askingName = false; face.mood = EyesView.Mood.IDLE; show("", tapHint) }
     }
 
-    private fun listen() {
+    /** "Доброе утро, Богдан!" when the app opens, at most once per part of the day. */
+    private fun greetIfTime() {
+        val name = Owner.name(this)
+        if (name.isEmpty() || !Owner.shouldGreet(this)) return
+        val g = DayPart.now().greeting(name)
+        show("", g)
+        face.mood = EyesView.Mood.HAPPY
+        if (ttsReady) speak(g) else pendingGreeting = g
+    }
+
+    // ------------------------------------------------------------ tap
+
+    private fun onTap() {
         if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), 1)
             return
         }
+        tts?.stop()
+        face.removeCallbacks(backToIdle)
+        if (!VoskModel.installed(this)) { downloadModel(); return }
+        if (Owner.name(this).isEmpty()) { askName(); return }
+        listen()
+    }
+
+    /** First tap: the voice model is fetched once (~45 MB), with progress on screen. */
+    private fun downloadModel() {
+        busy = true
+        face.mood = EyesView.Mood.THINKING
+        show("", Lang.t("Скачиваю голос… 0%", "Downloading voice… 0%"))
+        thread {
+            val ok = runCatching {
+                VoskModel.download(this) { p -> runOnUiThread { answer.text = Lang.t("Скачиваю голос… $p%", "Downloading voice… $p%") } }
+            }.isSuccess
+            runOnUiThread {
+                busy = false
+                if (ok) { face.mood = EyesView.Mood.HAPPY; show("", Lang.t("Готово! Нажми ещё раз", "Done! Tap me again")) }
+                else { face.mood = EyesView.Mood.CONFUSED; show("", Lang.t("Не скачалось. Проверь Wi-Fi и нажми ещё раз", "Download failed. Check Wi-Fi and tap again")) }
+                face.postDelayed(backToIdle, 3000)
+            }
+        }
+    }
+
+    /** Asks the name out loud, then listens with free speech once the question is spoken. */
+    private fun askName() {
+        askingName = true
+        val q = Lang.t("Привет! Как тебя зовут?", "Hi! What's your name?")
+        show("", q)
+        face.mood = EyesView.Mood.HAPPY
+        if (ttsReady && speak(q)) listenAfterSpeech = true else listen()
+    }
+
+    private fun afterSpeech() {
+        if (listenAfterSpeech) { listenAfterSpeech = false; listen(); return }
+        settle()
+    }
+
+    private fun listen() {
         busy = true
         answered = false
         lastPartial = ""
-        tts?.stop()
-        face.removeCallbacks(backToIdle)
         face.mood = EyesView.Mood.THINKING
-        say("", if (VoskModel.loaded) "" else "Просыпаюсь…")
+        if (!VoskModel.loaded) show("", Lang.t("Просыпаюсь…", "Waking up…"))
         thread {
             val model = VoskModel.get(this)
             runOnUiThread {
                 if (model == null) {
                     busy = false
                     face.mood = EyesView.Mood.CONFUSED
-                    say("", "Нет модели речи — смотри README")
+                    show("", Lang.t("Нет модели речи. Нажми ещё раз", "No voice model. Tap again"))
                     return@runOnUiThread
                 }
                 try {
                     speech?.shutdown()
-                    speech = SpeechService(VoskModel.recognizer(model), 16000f).also { it.startListening(this, 8000) }
+                    val rec = if (askingName) VoskModel.freeRecognizer(model) else VoskModel.recognizer(model)
+                    speech = SpeechService(rec, 16000f).also { it.startListening(this, 8000) }
                     face.mood = EyesView.Mood.LISTENING
-                    say("", "Слушаю…")
+                    if (!askingName) show("", Lang.t("Слушаю…", "Listening…"))
                 } catch (e: Exception) {
                     busy = false
                     face.mood = EyesView.Mood.CONFUSED
-                    say("", "Микрофон занят")
+                    show("", Lang.t("Микрофон занят", "Microphone is busy"))
                 }
             }
         }
@@ -134,7 +196,7 @@ class AssistantActivity : Activity(), RecognitionListener {
 
     override fun onPartialResult(hypothesis: String?) {
         val p = field(hypothesis, "partial")
-        if (p.isNotEmpty()) { lastPartial = p; heard.text = p; answer.text = "" }
+        if (p.isNotEmpty()) { lastPartial = p; heard.text = p.replace("[unk]", "…"); if (!askingName) answer.text = "" }
     }
 
     override fun onResult(hypothesis: String?) {
@@ -146,8 +208,9 @@ class AssistantActivity : Activity(), RecognitionListener {
 
     override fun onError(e: Exception?) {
         busy = false
+        askingName = false
         face.mood = EyesView.Mood.CONFUSED
-        say("", "Ошибка микрофона")
+        show("", Lang.t("Ошибка микрофона", "Microphone error"))
     }
 
     override fun onTimeout() = finish(lastPartial)
@@ -158,27 +221,50 @@ class AssistantActivity : Activity(), RecognitionListener {
         if (answered) return
         answered = true
         speech?.stop()
-        if (text.isEmpty()) {
+        if (askingName) { nameHeard(text); return }
+        if (text.replace("[unk]", "").isBlank()) {
             busy = false
             face.mood = EyesView.Mood.SLEEPY
-            say("", "Не услышал. Нажми ещё раз")
+            show("", Lang.t("Не услышал. Нажми ещё раз", "I didn't hear you. Tap again"))
             face.postDelayed(backToIdle, 3000)
             return
         }
         face.mood = EyesView.Mood.THINKING
-        say(text, "")
+        show(text, "")
         thread {
             val reply = commands.handle(text) { p -> runOnUiThread { answer.text = p } }
             runOnUiThread {
                 busy = false
-                val confused = reply.startsWith("Не понял")
-                face.mood = if (confused) EyesView.Mood.CONFUSED else EyesView.Mood.SPEAKING
-                say(text, reply)
-                val ok = tts?.speak(reply, TextToSpeech.QUEUE_FLUSH, null, "answer") == TextToSpeech.SUCCESS
-                if (!ok) face.postDelayed({ settle() }, 2500)
+                if (reply.askName) { askName(); return@runOnUiThread }
+                face.mood = if (reply.confused) EyesView.Mood.CONFUSED else EyesView.Mood.SPEAKING
+                show(text, reply.text)
+                if (!speak(reply.text)) face.postDelayed({ settle() }, 2500)
             }
         }
     }
+
+    private fun nameHeard(text: String) {
+        askingName = false
+        busy = false
+        val name = Owner.parseName(text)
+        if (name.isEmpty()) {
+            face.mood = EyesView.Mood.CONFUSED
+            val r = Lang.t("Не расслышал имя. Нажми и скажи ещё раз.", "I didn't catch your name. Tap and say it again.")
+            show("", r)
+            if (!speak(r)) face.postDelayed({ settle() }, 2500)
+            return
+        }
+        Owner.setName(this, name)
+        Owner.shouldGreet(this)   // counts as today's greeting
+        face.mood = EyesView.Mood.HAPPY
+        val r = Lang.t("Приятно познакомиться, $name! Теперь спрашивай что угодно.",
+            "Nice to meet you, $name! Now ask me anything.")
+        show("«$name»", r)
+        if (!speak(r)) face.postDelayed({ settle() }, 2500)
+    }
+
+    private fun speak(text: String): Boolean =
+        tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "answer") == TextToSpeech.SUCCESS
 
     /** After speaking: a short happy face, then back to idle. */
     private fun settle() {
@@ -188,8 +274,12 @@ class AssistantActivity : Activity(), RecognitionListener {
         face.postDelayed(backToIdle, 1600)
     }
 
-    private fun say(h: String, a: String) {
-        heard.text = if (h.isEmpty()) "" else "«$h»"
+    private fun show(h: String, a: String) {
+        heard.text = when {
+            h.isEmpty() -> ""
+            h.startsWith("«") -> h
+            else -> "«${h.replace("[unk]", "…")}»"
+        }
         answer.text = a
         answer.textSize = if (a.length > 60) 12f else 15f
     }
@@ -202,28 +292,5 @@ class AssistantActivity : Activity(), RecognitionListener {
         setTextColor(color)
         gravity = Gravity.CENTER
         setShadowLayer(8f, 0f, 0f, Color.BLACK)
-    }
-}
-
-/** Loads the Vosk model once and keeps it in memory. */
-object VoskModel {
-    private var model: Model? = null
-    val loaded get() = model != null
-
-    /** The app's private folder; see README for how to copy the model there. */
-    fun dir(c: Context): File = File(c.filesDir, "vosk-model-ru")
-
-    /** Recognizer limited to the command words; falls back to free speech if the model can't do grammars. */
-    fun recognizer(model: Model): Recognizer {
-        val grammar = org.json.JSONArray(Commands.VOCABULARY + "[unk]").toString()
-        return runCatching { Recognizer(model, 16000f, grammar) }.getOrElse { Recognizer(model, 16000f) }
-    }
-
-    @Synchronized
-    fun get(c: Context): Model? {
-        model?.let { return it }
-        val d = dir(c)
-        if (!File(d, "am").exists() && !File(d, "conf").exists()) return null
-        return runCatching { Model(d.path) }.getOrNull()?.also { model = it }
     }
 }
