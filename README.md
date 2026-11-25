@@ -147,7 +147,7 @@ The watch also announces itself on the network as `_wristeyes._tcp`.
 | Watch | Status |
 |---|---|
 | TicWatch Pro 5 (Wear OS 4) | ✅ tested |
-| Galaxy Watch, Pixel Watch, other Wear OS 3+ | should work, [tell us](https://github.com/iachimciucprojects-netizen/WristEyes/issues) |
+| Galaxy Watch, Pixel Watch, other Wear OS 3+ | should work, [report a watch test](https://github.com/iachimciucprojects-netizen/WristEyes/issues/new?template=watch_report.md) |
 
 ## Notes
 
